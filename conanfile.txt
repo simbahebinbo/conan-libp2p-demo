@@ -1,0 +1,9 @@
+[requires]
+libp2p/0.1.37
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
