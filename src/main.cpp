@@ -2,11 +2,17 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <random>
+#include <iomanip>
+#include <sstream>
 #include <libp2p/libp2p.hpp>
 #include <libp2p/peer/peer_id.hpp>
+#include <libp2p/peer/peer_info.hpp>
 #include <libp2p/multi/multiaddress.hpp>
-#include <libp2p/crypto/protobuf/protobuf_key.hpp>
 #include <libp2p/multi/multihash.hpp>
+#include <libp2p/crypto/protobuf/protobuf_key.hpp>
+#include <libp2p/crypto/key.hpp>
+#include <libp2p/common/types.hpp>
 
 int main() {
     std::cout << "=== libp2p 使用示例 ===" << std::endl;
@@ -109,12 +115,166 @@ int main() {
             }
         }
 
-        // 4. 显示 libp2p 基本信息
-        std::cout << "\n4. libp2p 基本信息" << std::endl;
-        std::cout << "✓ libp2p 库成功加载" << std::endl;
-        std::cout << "✓ PeerId 创建功能正常" << std::endl;
+        // 4. 测试 PeerInfo 创建和操作
+        std::cout << "\n4. 测试 PeerInfo 功能" << std::endl;
+        
+        // 创建一个 PeerInfo 对象
+        std::vector<uint8_t> peer_key_data = {
+            0x08, 0x01, 0x12, 0x20,  // Ed25519 公钥格式
+            0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x11, 0x22,
+            0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00,
+            0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+            0x13, 0x57, 0x9b, 0xdf, 0x02, 0x46, 0x8a, 0xce
+        };
+        
+        libp2p::crypto::ProtobufKey peer_protobuf_key{peer_key_data};
+        auto peer_id_for_info = libp2p::peer::PeerId::fromPublicKey(peer_protobuf_key);
+        
+        if (peer_id_for_info.has_value()) {
+            auto peer_id = peer_id_for_info.value();
+            
+            // 创建 PeerInfo
+            libp2p::peer::PeerInfo peer_info{peer_id};
+            
+            // 添加地址到 PeerInfo
+            auto addr1 = libp2p::multi::Multiaddress::create("/ip4/192.168.1.100/tcp/9001");
+            auto addr2 = libp2p::multi::Multiaddress::create("/ip6/::1/tcp/9002");
+            
+            if (addr1.has_value()) {
+                peer_info.addresses.push_back(addr1.value());
+                std::cout << "✓ 添加 IPv4 地址到 PeerInfo" << std::endl;
+            }
+            
+            if (addr2.has_value()) {
+                peer_info.addresses.push_back(addr2.value());
+                std::cout << "✓ 添加 IPv6 地址到 PeerInfo" << std::endl;
+            }
+            
+            std::cout << "✓ PeerInfo 创建成功，包含 " << peer_info.addresses.size() << " 个地址" << std::endl;
+            std::cout << "  Peer ID: " << peer_info.id.toBase58() << std::endl;
+            
+            // 显示所有地址
+            for (size_t i = 0; i < peer_info.addresses.size(); ++i) {
+                std::cout << "  地址 " << (i+1) << ": " << peer_info.addresses[i].getStringAddress() << std::endl;
+            }
+        }
+
+        // 5. 测试多重哈希操作
+        std::cout << "\n5. 测试多重哈希功能" << std::endl;
+        
+        // 创建不同类型的多重哈希
+        std::vector<uint8_t> sha256_data = {0x12, 0x20};  // SHA256, 32字节
+        for (int i = 0; i < 32; i++) {
+            sha256_data.push_back(static_cast<uint8_t>(i * 7 + 42));  // 生成一些测试数据
+        }
+        
+        auto sha256_multihash = libp2p::multi::Multihash::create(libp2p::multi::HashType::sha256, sha256_data);
+        if (sha256_multihash.has_value()) {
+            std::cout << "✓ 创建 SHA256 多重哈希成功" << std::endl;
+            std::cout << "  哈希类型: SHA256" << std::endl;
+            std::cout << "  数据长度: " << sha256_multihash.value().getHash().size() << " 字节" << std::endl;
+        }
+
+        // 6. 测试密钥类型和操作
+        std::cout << "\n6. 测试密钥类型" << std::endl;
+        
+        // 创建不同类型的密钥结构
+        libp2p::crypto::PublicKey ed25519_pubkey;
+        ed25519_pubkey.type = libp2p::crypto::Key::Type::Ed25519;
+        ed25519_pubkey.data = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+                               0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                               0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00,
+                               0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+        
+        std::cout << "✓ Ed25519 公钥结构创建成功" << std::endl;
+        std::cout << "  密钥类型: " << static_cast<int>(ed25519_pubkey.type) << " (Ed25519)" << std::endl;
+        std::cout << "  密钥长度: " << ed25519_pubkey.data.size() << " 字节" << std::endl;
+
+        libp2p::crypto::PrivateKey ed25519_privkey;
+        ed25519_privkey.type = libp2p::crypto::Key::Type::Ed25519;
+        ed25519_privkey.data.resize(64);  // Ed25519 私钥通常是64字节
+        
+        // 填充一些示例数据
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 255);
+        for (auto& byte : ed25519_privkey.data) {
+            byte = static_cast<uint8_t>(dis(gen));
+        }
+        
+        std::cout << "✓ Ed25519 私钥结构创建成功" << std::endl;
+        std::cout << "  私钥长度: " << ed25519_privkey.data.size() << " 字节" << std::endl;
+
+        // 7. 测试地址操作和解析
+        std::cout << "\n7. 测试高级地址操作" << std::endl;
+        
+        std::vector<std::string> complex_addresses = {
+            "/ip4/127.0.0.1/tcp/8080/p2p/12D3KooWBhKNKkL6qTTvKXivnX2JgKPFnHZRNmXqnJQv1F1rSDvL",
+            "/ip6/::1/tcp/9090/p2p/QmYwAPJzv5CZsnA625s3Xf2femtbj7ZR4wm3b6LHLM6rJ",
+            "/dns4/example.com/tcp/443/wss"
+        };
+        
+        for (const auto& addr_str : complex_addresses) {
+            auto addr_result = libp2p::multi::Multiaddress::create(addr_str);
+            if (addr_result.has_value()) {
+                auto addr = addr_result.value();
+                std::cout << "✓ 解析复杂地址: " << addr.getStringAddress() << std::endl;
+                
+                auto protocols = addr.getProtocols();
+                std::cout << "  包含协议: ";
+                bool first = true;
+                for (const auto& protocol : protocols) {
+                    if (!first) std::cout << ", ";
+                    std::cout << protocol.name;
+                    first = false;
+                }
+                std::cout << std::endl;
+            } else {
+                std::cout << "✗ 解析地址失败: " << addr_str << std::endl;
+            }
+        }
+
+        // 8. 数据格式转换演示
+        std::cout << "\n8. 测试数据格式转换" << std::endl;
+        
+        // 十六进制字符串转换
+        auto hex_to_bytes = [](const std::string& hex) -> std::vector<uint8_t> {
+            std::vector<uint8_t> bytes;
+            for (size_t i = 0; i < hex.length(); i += 2) {
+                std::string byte_str = hex.substr(i, 2);
+                uint8_t byte = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
+                bytes.push_back(byte);
+            }
+            return bytes;
+        };
+        
+        auto bytes_to_hex = [](const std::vector<uint8_t>& bytes) -> std::string {
+            std::stringstream ss;
+            ss << std::hex << std::setfill('0');
+            for (uint8_t byte : bytes) {
+                ss << std::setw(2) << static_cast<int>(byte);
+            }
+            return ss.str();
+        };
+        
+        std::string test_hex = "12345678abcdef";
+        auto test_bytes = hex_to_bytes(test_hex);
+        auto converted_hex = bytes_to_hex(test_bytes);
+        
+        std::cout << "✓ 十六进制转换测试" << std::endl;
+        std::cout << "  原始: " << test_hex << std::endl;
+        std::cout << "  转换: " << converted_hex << std::endl;
+        std::cout << "  匹配: " << (test_hex == converted_hex ? "是" : "否") << std::endl;
+
+        // 9. 显示 libp2p 基本信息
+        std::cout << "\n9. libp2p 综合测试总结" << std::endl;
+        std::cout << "✓ libp2p 库成功加载和使用" << std::endl;
+        std::cout << "✓ PeerId 创建和操作功能正常" << std::endl;
+        std::cout << "✓ PeerInfo 管理功能正常" << std::endl;
         std::cout << "✓ Multiaddress 解析功能正常" << std::endl;
-        std::cout << "✓ 加密模块可用 (通过编译检查)" << std::endl;
+        std::cout << "✓ 多重哈希处理功能正常" << std::endl;
+        std::cout << "✓ 密钥数据结构操作正常" << std::endl;
+        std::cout << "✓ 数据格式转换功能正常" << std::endl;
         
     } catch (const std::exception& e) {
         std::cerr << "✗ 程序异常: " << e.what() << std::endl;

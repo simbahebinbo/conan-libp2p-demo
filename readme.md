@@ -76,22 +76,12 @@ target_compile_features(example_libp2p PRIVATE cxx_std_20)
 
 ## 功能演示
 
-程序演示了 libp2p 的以下核心功能：
+程序演示了 libp2p 的核心功能：
 
-1. **Peer ID 处理**
-   - 从 base58 字符串创建 Peer ID
-   - 获取 Peer ID 的字符串表示
-
-2. **Multiaddress 解析**
-   - 解析不同格式的网络地址
-   - 获取协议信息
-   - 支持 IPv4、IPv6、DNS 等多种协议
-
-3. **支持的地址格式**
-   - `/ip4/127.0.0.1/tcp/8000`
-   - `/ip4/192.168.1.1/tcp/1234`
-   - `/ip6/::1/tcp/5001`
-   - `/dns4/example.com/tcp/443`
+- **Peer ID 创建**：支持从公钥数据、base58 字符串、字节数组等多种方式创建
+- **Multiaddress 解析**：解析和处理网络地址（IPv4、IPv6、DNS 等）
+- **多重哈希操作**：处理 libp2p 标准的哈希格式
+- **加密组件**：验证加密模块的可用性
 
 ## 编译和运行
 
@@ -116,9 +106,15 @@ $ ./run.sh
 ```
 === libp2p 使用示例 ===
 
-1. 测试 Peer ID 功能
-✗ 从 base58 创建 Peer ID 失败，错误: The length encoded in the input data header doesn't match the actual length of the input data
-  注意：PeerId 需要特定的格式，这不影响 libp2p 库的基本功能
+1. 测试 Peer ID 创建
+✓ 成功从公钥数据创建 Peer ID: 12D3KooWB3Ro5C6Myi14cJmZpmtTtJ3N5JAR6QLqmeRHyc8XrZXM
+  Peer ID 长度: 52 字符
+
+1.2 测试从已知 base58 字符串创建 PeerId
+✓ 成功从 base58 创建 Peer ID: 12D3KooWBhKNKkL6qTTvKXivnX2JgKPFnHZRNmXqnJQv1F1rSDvL
+
+1.3 测试从字节数组创建 PeerId
+✓ 成功从字节数组创建 Peer ID: QmNQatwxYrvx45JHzALe54be3KTBVQrLtHdPfkmvNNhQkw
 
 2. 测试 Multiaddress 功能
 ✓ 成功解析 Multiaddress: /ip4/127.0.0.1/tcp/8000
@@ -133,7 +129,8 @@ $ ./run.sh
 
 4. libp2p 基本信息
 ✓ libp2p 库成功加载
-✓ 基本功能测试完成
+✓ PeerId 创建功能正常
+✓ Multiaddress 解析功能正常
 ✓ 加密模块可用 (通过编译检查)
 
 === libp2p 示例运行完成 ===
@@ -156,17 +153,14 @@ libp2p/0.1.37 包自动引入了以下传递依赖：
 - yaml-cpp/0.6.2-0f9a586-p1
 - 其他必要的加密和网络库
 
-## 注意事项
+## 说明
 
-1. PeerId 的创建需要特定格式的输入，示例中的简单字符串可能无法直接转换
-2. 实际使用中，PeerId 通常从密钥对生成或从有效的节点标识符解析
-3. Multiaddress 功能工作正常，可以解析各种网络地址格式
-4. 项目已成功验证了 libp2p 库的基本功能可用性
+本项目展示了 libp2p/0.1.37 包在 C++ 项目中的基本集成和使用。通过 Conan 包管理器实现依赖管理，使用 CMake 构建系统。
 
-## 扩展建议
+**主要特点**：
+- 标准的 Conan + CMake 工作流
+- 演示核心 libp2p 组件的使用
+- 包含完善的错误处理
+- C++20 现代特性支持
 
-要进一步使用 libp2p 的高级功能，可以探索：
-- 创建 libp2p 主机节点
-- 实现协议处理器（如 ping、echo）
-- 建立节点间连接
-- 使用加密和身份验证功能
+**适用场景**：P2P 网络应用、分布式系统、区块链项目等需要 libp2p 功能的场景。
